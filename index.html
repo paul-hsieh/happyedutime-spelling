@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spelling Practice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Baloo 2', 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #fce4ec 0%, #e8eaf6 30%, #e0f7fa 60%, #fff9c4 100%);
+    background-attachment: fixed;
+    color: #333;
+    min-height: 100vh;
+  }
+
+  /* Floating background decorations */
+  body::before {
+    content: '';
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background:
+      radial-gradient(circle at 10% 20%, rgba(255,183,77,0.15) 0%, transparent 40%),
+      radial-gradient(circle at 85% 60%, rgba(129,212,250,0.2) 0%, transparent 35%),
+      radial-gradient(circle at 50% 90%, rgba(186,104,200,0.12) 0%, transparent 40%);
+    pointer-events: none; z-index: 0;
+  }
+
+  /* Welcome Screen */
+  #welcome {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 100vh; position: relative; z-index: 1;
+  }
+  #welcome h1 {
+    font-size: 3rem; margin-bottom: 0.3rem; font-weight: 800;
+    background: linear-gradient(135deg, #ff6f61, #ffb347, #43cea2, #6c63ff);
+    background-size: 300% 300%;
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    animation: gradientShift 4s ease infinite;
+  }
+  @keyframes gradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+  #welcome .mascot { font-size: 5rem; margin-bottom: 0.5rem; animation: bounce 2s ease infinite; }
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-12px); }
+  }
+  #welcome p { font-size: 1.2rem; color: #666; margin-bottom: 1.5rem; }
+  .welcome-settings {
+    margin-bottom: 1.5rem; font-size: 1.1rem;
+    background: rgba(255,255,255,0.7); padding: 16px 28px; border-radius: 20px;
+    backdrop-filter: blur(6px); box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+  .welcome-settings label { font-weight: 700; color: #555; }
+  .welcome-settings input {
+    width: 70px; padding: 6px 10px; font-size: 1.1rem; font-family: inherit;
+    border: 2px solid #e0c3fc; border-radius: 12px; text-align: center;
+    background: #fff; transition: border-color 0.2s;
+  }
+  .welcome-settings input:focus { outline: none; border-color: #ab47bc; }
+  #startBtn {
+    font-family: inherit; font-size: 1.4rem; font-weight: 700; padding: 16px 56px;
+    border: none; border-radius: 50px; color: #fff; cursor: pointer;
+    background: linear-gradient(135deg, #ff6f61, #ffb347);
+    box-shadow: 0 4px 16px rgba(255,111,97,0.35);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  #startBtn:hover { transform: scale(1.06); box-shadow: 0 6px 24px rgba(255,111,97,0.45); }
+  #startBtn:active { transform: scale(0.97); }
+
+  /* Quiz Screen */
+  #quiz { display: none; max-width: 800px; margin: 0 auto; padding: 24px 16px; position: relative; z-index: 1; }
+  #quiz h2 {
+    text-align: center; margin-bottom: 16px; font-size: 1.8rem; font-weight: 800; color: #6c63ff;
+  }
+
+  table {
+    width: 100%; border-collapse: separate; border-spacing: 0;
+    background: rgba(255,255,255,0.85); border-radius: 20px; overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08); backdrop-filter: blur(6px);
+  }
+  th {
+    background: linear-gradient(135deg, #e8eaf6, #f3e5f5); padding: 14px 8px;
+    text-align: center; font-size: 0.9rem; color: #7e57c2; font-weight: 700;
+  }
+  td { padding: 10px 8px; text-align: center; border-top: 1px solid #f0e6ff; }
+  tr:hover { background: rgba(236,226,255,0.3); }
+
+  .num { font-weight: 700; color: #ab47bc; width: 40px; font-size: 1rem; }
+  .word-cell { font-size: 1.15rem; font-weight: 700; color: #4a148c; letter-spacing: 1px; min-width: 140px; }
+  .word-hidden {
+    color: transparent; background: linear-gradient(135deg, #e1bee7, #b2dfdb); border-radius: 10px;
+    user-select: none; position: relative;
+  }
+  .word-hidden::after {
+    content: '?'; color: rgba(255,255,255,0.6); position: absolute;
+    left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 1.2rem;
+  }
+  .word-revealed { color: #4a148c; background: none; }
+  .word-revealed::after { content: none; }
+
+  .play-btn {
+    width: 40px; height: 40px; border: none; border-radius: 50%; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  }
+  .play-btn:hover { transform: scale(1.2); box-shadow: 0 3px 12px rgba(0,0,0,0.15); }
+  .play-btn:active { transform: scale(0.9); }
+
+  .play-speech { background: linear-gradient(135deg, #bbdefb, #e3f2fd); color: #1565c0; }
+  .play-google { background: linear-gradient(135deg, #c8e6c9, #e8f5e9); color: #2e7d32; }
+  .play-dict { background: linear-gradient(135deg, #e1bee7, #f3e5f5); color: #7b1fa2; }
+
+  .actions { text-align: center; margin: 28px 0; display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+  .action-btn {
+    font-family: inherit; font-size: 1.15rem; font-weight: 700; padding: 14px 40px;
+    border: none; border-radius: 50px; cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s; color: #fff;
+  }
+  .action-btn:hover { transform: scale(1.05); }
+  .action-btn:active { transform: scale(0.96); }
+  #revealBtn {
+    background: linear-gradient(135deg, #43cea2, #85d8ce);
+    box-shadow: 0 4px 14px rgba(67,206,162,0.35);
+  }
+  #restartBtn {
+    background: linear-gradient(135deg, #a18cd1, #fbc2eb);
+    box-shadow: 0 4px 14px rgba(161,140,209,0.35);
+  }
+
+  .legend {
+    text-align: center; margin-bottom: 16px; font-size: 0.9rem; color: #888;
+    background: rgba(255,255,255,0.5); padding: 8px 16px; border-radius: 14px; display: inline-block;
+  }
+  .legend-wrap { text-align: center; margin-bottom: 12px; }
+  .legend span { margin: 0 10px; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div id="welcome">
+  <div class="mascot">&#x1f4da;</div>
+  <h1>Spelling Bee!</h1>
+  <p>Listen carefully, then check your spelling!</p>
+  <div class="welcome-settings">
+    <label for="wordCount">Words per set:</label>
+    <input id="wordCount" type="number" min="1" max="502" value="50">
+  </div>
+  <button id="startBtn">Let's Go!</button>
+</div>
+
+<div id="quiz">
+  <h2>&#x1f41d; Spelling Bee! &#x1f41d;</h2>
+  <div class="legend-wrap"><div class="legend">
+    <span>&#x1f508; Browser</span>
+    <span style="color:#2e7d32">&#9654; Google</span>
+    <span style="color:#7b1fa2">&#9654; Dictionary</span>
+  </div></div>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>&#x1f508;</th>
+        <th>G</th>
+        <th>Dict</th>
+        <th>Word</th>
+      </tr>
+    </thead>
+    <tbody id="wordBody"></tbody>
+  </table>
+  <div class="actions">
+    <button id="revealBtn" class="action-btn">&#x1f440; Reveal Spelling</button>
+    <button id="restartBtn" class="action-btn">&#x1f504; New Set</button>
+  </div>
+</div>
+
+<script>
+const ALL_WORDS = [
+  "repair","leader","real estate","therapist","flight","ranger","grill","building",
+  "scone","service","writer","counsellor","basil","electrician","festival","athlete",
+  "manager","spinach","scout","leopard","shopkeeper","stock","growl","hawk","waffle",
+  "illustrator","carpenter","businessman","cabbage","vinegar","captain","seller",
+  "street food","squad","price","janitor","rooster","vice","barista","radish","almond",
+  "guava","plum","editor","duck","movie star","spoon","steam","ribbit","fast food",
+  "bacon","mango","yoga","llama","sushi","engineer","supermarket","horse","milkshake",
+  "calf","goose","chef","painter","zoo","mix","factory","shop","salamander","salad",
+  "juice","celery","pineapple","delivery","flamingo","singer","fur","advisor","pastry",
+  "pepper","boil","hard","chili","snake","squirrel","corn","salt","burger","vegetable",
+  "cave","cat","jam","plumber","ladybug","meal","avocado","apple","taxi","wet","waiter",
+  "beaver","climb","mailman","soft","dairy","cereal","runner","stripe","soda","dolphin",
+  "mushroom","nest","hippo","penguin","nut","cocoa","soccer","share","chipmunk",
+  "sea snail","pork","goat","popcorn","sparrow","rabbit","gardener","candy","hop",
+  "pony","mechanic","wasp","parrot","sauce","dove","rescue","baker","hairdresser",
+  "firefly","butterfly","travel","curry","lemon","kangaroo","trainer","puppy","turkey",
+  "mantis","construction","principal","bat","social","chameleon","lobster","hot pepper",
+  "tailor","strawberry","spring roll","feather","squid","cold","dry","hot","sea turtle",
+  "firefighter","aide","actor","pear","plant-eater","fly","fry","salmon","baboon",
+  "buffalo","worm","sea lion","sheep","security","turtle","cow","helper","pita","honey",
+  "guide","book","junk food","coconut","soldier","substitute","tail","chirp","tart",
+  "stew","quack","pumpkin","froze; frozen","cupcake","beak","milk tea","camel","meat",
+  "camera","administrative","dragon fruit","can","mammal","event","chips","creamy",
+  "breakfast","otter","dragonfly","pigeon","vet","menu","cut","papaya","trout",
+  "dentist","possum","insect","crow","spot","chopstick","grape","herb","fin","customer",
+  "warehouse","seaweed","inventor","flour","owl","land animal","donkey","luggage",
+  "agent","onion","bowl","attendant","oil","soup","swallow","starfish","staff","mouse",
+  "swim","spicy","lizard","bread","lifeguard","knife","nanny","stingray","kiwi",
+  "kitten","mayo","bus","reporter","mail","carrot","hole","baked","laundry","brownie",
+  "lemonade","fresh","café","fox","lamb","deer","tutor","roast","dish","moo","sloth",
+  "builder","park","waitress","farm","road","toy","raccoon","dog","wing","lychee",
+  "conductor","eat","coral","paw","bun","fries","fitness","swan","raw","grass-eater",
+  "cake","alpaca","vendor","macaw","pufferfish","banana","pizza","snail","bug","pasta",
+  "after school","sailor","maker","freeze","consultant","giraffe","crab","coach",
+  "sausage","spaghetti","tyrannosaurus","tomato","gorilla","wolf","orange","cashier",
+  "sweet","cartoonist","jelly","reindeer","reptile","hot dog","fork","cleaner",
+  "meat-eater","police officer","watermelon","stage","porridge","pie","fried",
+  "triceratops","piglet","claw","nurse","run","mild","howl","tadpole","artist",
+  "scientist","guard","team","cucumber","photographer","whale","hedgehog","shell",
+  "secret","fisherman","lunch","roar","tuna","student","secretary","horn","swimmer",
+  "tour","moose","dumpling","olive","beetle","business","jump","chimpanzee","hiss",
+  "eat in","smoothie","eagle","eel","sandwich","cheetah","assistant","craft","shrimp",
+  "stir-fry","bear","oyster","pilot","florist","warm","pig","noodle","museum",
+  "jellyfish","cook","lettuce","skunk","sea horse","grain","raisin","yogurt","muffin",
+  "bee queen","hotel","goldfish","beef","chick","take out","zebra","farmer","drink",
+  "ticket","hen","peach","birthday","donut","animal","rock star","cup","healthy","oily",
+  "tiger","croissant","store","monkey","seafood","lime","soy","octopus","barber",
+  "dancer","ice cream","rice","chicken","pudding","duckling","room","chocolate","spider",
+  "peacock","fish","driver","ketchup","butter","cheese","school","frog","sugar","bird",
+  "order","fig","grasshopper","clerk","fair","junk","seal","video","plate","melon",
+  "pancake","cameraman","elephant","antelope","clam","parakeet","bean","snack","mussel",
+  "cream","doctor","bee worker","rhino","ray","beet","hamster","toast","lion","buzz",
+  "ant","librarian","shark","oink","sea animal","office","bake","ginger","ox",
+  "ambulance","pet","salty","toad","cherry","dinner","crunchy","potato","sea life",
+  "babysitter","panda","bee","train","tofu","wild","teacher","cricket","zookeeper",
+  "koala","crawl"
+];
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// Audio cache: word -> { us: url }
+const audioCache = {};
+
+function fetchAudio(word) {
+  if (audioCache[word]) return Promise.resolve();
+  // Use first word for compound terms (e.g. "real estate" -> "real")
+  // Try full phrase first, then first word as fallback
+  const lookups = [word];
+  if (word.includes(' ') || word.includes('-')) {
+    lookups.push(word.split(/[\s-]+/)[0]);
+  }
+  return (async () => {
+    for (const lookup of lookups) {
+      try {
+        const r = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(lookup)}`);
+        if (!r.ok) continue;
+        const data = await r.json();
+        const phonetics = data.flatMap(e => e.phonetics || []).filter(p => p.audio);
+        const us = phonetics.find(p => p.audio.includes('-us'))?.audio
+          || phonetics.find(p => p.audio.includes('us/'))?.audio;
+        const any = phonetics[0]?.audio;
+        audioCache[word] = { us: us || any || '' };
+        return;
+      } catch {}
+    }
+    audioCache[word] = { us: '' };
+  })();
+}
+
+function speakWord(word) {
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(word);
+  u.lang = 'en-US';
+  u.rate = 0.85;
+  window.speechSynthesis.speak(u);
+}
+
+function playGoogle(word) {
+  const url = 'https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=' + encodeURIComponent(word);
+  const a = new Audio(url);
+  a.play().catch(() => speakWord(word));
+}
+
+function playDict(word) {
+  const cached = audioCache[word];
+  if (cached && cached.us) {
+    new Audio(cached.us).play().catch(() => speakWord(word));
+  } else {
+    speakWord(word);
+  }
+}
+
+let selected = [];
+
+function startQuiz() {
+  const count = Math.max(1, Math.min(ALL_WORDS.length, parseInt(document.getElementById('wordCount').value) || 50));
+  selected = shuffle([...ALL_WORDS]).slice(0, count);
+  const tbody = document.getElementById('wordBody');
+  tbody.innerHTML = '';
+
+  // Pre-fetch audio for all selected words
+  const pronounceWords = selected.map(w => w.split(';')[0].trim());
+  pronounceWords.forEach(w => fetchAudio(w));
+
+  selected.forEach((word, i) => {
+    const tr = document.createElement('tr');
+
+    // Clean word for pronunciation (handle "froze; frozen" etc.)
+    const pronounce = word.split(';')[0].trim();
+
+    tr.innerHTML = `
+      <td class="num">${i + 1}</td>
+      <td><button class="play-btn play-speech" onclick="speakWord('${pronounce.replace(/'/g, "\\'")}')">&#x1f508;</button></td>
+      <td><button class="play-btn play-google" onclick="playGoogle('${pronounce.replace(/'/g, "\\'")}')">&#9654;</button></td>
+      <td><button class="play-btn play-dict" onclick="playDict('${pronounce.replace(/'/g, "\\'")}')">&#9654;</button></td>
+      <td class="word-cell word-hidden" data-word="${word}">${word}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('welcome').style.display = 'none';
+  document.getElementById('quiz').style.display = 'block';
+  document.getElementById('revealBtn').innerHTML = '\u{1f440} Reveal Spelling';
+  window.scrollTo(0, 0);
+}
+
+let revealed = false;
+
+document.getElementById('revealBtn').addEventListener('click', () => {
+  revealed = !revealed;
+  document.querySelectorAll('.word-cell').forEach(el => {
+    el.classList.toggle('word-hidden', !revealed);
+    el.classList.toggle('word-revealed', revealed);
+  });
+  document.getElementById('revealBtn').innerHTML = revealed ? '\u{1f648} Hide Spelling' : '\u{1f440} Reveal Spelling';
+});
+
+document.getElementById('restartBtn').addEventListener('click', () => {
+  revealed = false;
+  startQuiz();
+});
+
+document.getElementById('startBtn').addEventListener('click', startQuiz);
+</script>
+</body>
+</html>
