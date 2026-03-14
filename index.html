@@ -112,7 +112,6 @@
   .play-btn:active { transform: scale(0.9); }
 
   .play-speech { background: linear-gradient(135deg, #bbdefb, #e3f2fd); color: #1565c0; }
-  .play-google { background: linear-gradient(135deg, #c8e6c9, #e8f5e9); color: #2e7d32; }
   .play-dict { background: linear-gradient(135deg, #e1bee7, #f3e5f5); color: #7b1fa2; }
 
   .actions { text-align: center; margin: 28px 0; display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
@@ -157,7 +156,6 @@
   <h2>&#x1f41d; Spelling Bee! &#x1f41d;</h2>
   <div class="legend-wrap"><div class="legend">
     <span>&#x1f508; Browser</span>
-    <span style="color:#2e7d32">&#9654; Google</span>
     <span style="color:#7b1fa2">&#9654; Dictionary</span>
   </div></div>
   <table>
@@ -165,7 +163,6 @@
       <tr>
         <th>#</th>
         <th>&#x1f508;</th>
-        <th>G</th>
         <th>Dict</th>
         <th>Word</th>
       </tr>
@@ -246,18 +243,17 @@ function shuffle(arr) {
   return arr;
 }
 
-// Audio cache: word -> { us: url }
+// Audio cache: word -> { dict: url }
 const audioCache = {};
 
 function fetchAudio(word) {
   if (audioCache[word]) return Promise.resolve();
-  // Use first word for compound terms (e.g. "real estate" -> "real")
-  // Try full phrase first, then first word as fallback
   const lookups = [word];
   if (word.includes(' ') || word.includes('-')) {
     lookups.push(word.split(/[\s-]+/)[0]);
   }
-  return (async () => {
+
+  const dictPromise = (async () => {
     for (const lookup of lookups) {
       try {
         const r = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(lookup)}`);
@@ -266,13 +262,15 @@ function fetchAudio(word) {
         const phonetics = data.flatMap(e => e.phonetics || []).filter(p => p.audio);
         const us = phonetics.find(p => p.audio.includes('-us'))?.audio
           || phonetics.find(p => p.audio.includes('us/'))?.audio;
-        const any = phonetics[0]?.audio;
-        audioCache[word] = { us: us || any || '' };
-        return;
+        return us || phonetics[0]?.audio || '';
       } catch {}
     }
-    audioCache[word] = { us: '' };
+    return '';
   })();
+
+  return dictPromise.then(dict => {
+    audioCache[word] = { dict };
+  });
 }
 
 function speakWord(word) {
@@ -283,20 +281,16 @@ function speakWord(word) {
   window.speechSynthesis.speak(u);
 }
 
-function playGoogle(word) {
-  const url = 'https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=' + encodeURIComponent(word);
-  const a = new Audio(url);
-  a.play().catch(() => speakWord(word));
-}
 
 function playDict(word) {
   const cached = audioCache[word];
-  if (cached && cached.us) {
-    new Audio(cached.us).play().catch(() => speakWord(word));
+  if (cached && cached.dict) {
+    new Audio(cached.dict).play().catch(() => speakWord(word));
   } else {
     speakWord(word);
   }
 }
+
 
 let selected = [];
 
@@ -319,7 +313,6 @@ function startQuiz() {
     tr.innerHTML = `
       <td class="num">${i + 1}</td>
       <td><button class="play-btn play-speech" onclick="speakWord('${pronounce.replace(/'/g, "\\'")}')">&#x1f508;</button></td>
-      <td><button class="play-btn play-google" onclick="playGoogle('${pronounce.replace(/'/g, "\\'")}')">&#9654;</button></td>
       <td><button class="play-btn play-dict" onclick="playDict('${pronounce.replace(/'/g, "\\'")}')">&#9654;</button></td>
       <td class="word-cell word-hidden" data-word="${word}">${word}</td>
     `;
