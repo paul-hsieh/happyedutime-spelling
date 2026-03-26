@@ -102,6 +102,18 @@
   .word-revealed { color: #4a148c; background: none; }
   .word-revealed::after { content: none; }
 
+  .wrong-toggle {
+    width: 36px; height: 36px; border: 2px solid #e0e0e0; border-radius: 50%;
+    cursor: pointer; font-size: 1.1rem; background: #fff;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: all 0.2s; visibility: hidden;
+  }
+  .wrong-toggle.visible { visibility: visible; }
+  .wrong-toggle.active {
+    background: linear-gradient(135deg, #ff5252, #ff867f); border-color: #ff5252; color: #fff;
+  }
+  .wrong-col { width: 50px; }
+
   .play-btn {
     width: 40px; height: 40px; border: none; border-radius: 50%; cursor: pointer;
     display: inline-flex; align-items: center; justify-content: center;
@@ -165,6 +177,7 @@
         <th>&#x1f508;</th>
         <th>Dict</th>
         <th>Word</th>
+        <th class="wrong-col"></th>
       </tr>
     </thead>
     <tbody id="wordBody"></tbody>
@@ -270,6 +283,10 @@ function fetchAudio(word) {
 
   return dictPromise.then(dict => {
     audioCache[word] = { dict };
+    // Pre-download the audio file so it lands in the browser's HTTP cache
+    if (dict) {
+      fetch(dict).catch(() => {});
+    }
   });
 }
 
@@ -294,9 +311,29 @@ function playDict(word) {
 
 let selected = [];
 
+// Wrong words persistence via localStorage
+const WRONG_KEY = 'spellingBee_wrongWords';
+function loadWrongWords() {
+  try { return new Set(JSON.parse(localStorage.getItem(WRONG_KEY) || '[]')); } catch { return new Set(); }
+}
+function saveWrongWords(set) {
+  localStorage.setItem(WRONG_KEY, JSON.stringify([...set]));
+}
+
+function pickWords(count) {
+  const wrong = loadWrongWords();
+  // Priority: previously wrong words that are still in ALL_WORDS
+  const priority = shuffle(ALL_WORDS.filter(w => wrong.has(w)));
+  const rest = shuffle(ALL_WORDS.filter(w => !wrong.has(w)));
+  // Take as many priority words as available (up to count), fill remainder with rest
+  const picked = priority.slice(0, count);
+  picked.push(...rest.slice(0, count - picked.length));
+  return shuffle(picked);
+}
+
 function startQuiz() {
   const count = Math.max(1, Math.min(ALL_WORDS.length, parseInt(document.getElementById('wordCount').value) || 50));
-  selected = shuffle([...ALL_WORDS]).slice(0, count);
+  selected = pickWords(count);
   const tbody = document.getElementById('wordBody');
   tbody.innerHTML = '';
 
@@ -315,6 +352,7 @@ function startQuiz() {
       <td><button class="play-btn play-speech" onclick="speakWord('${pronounce.replace(/'/g, "\\'")}')">&#x1f508;</button></td>
       <td><button class="play-btn play-dict" onclick="playDict('${pronounce.replace(/'/g, "\\'")}')">&#9654;</button></td>
       <td class="word-cell word-hidden" data-word="${word}">${word}</td>
+      <td><button class="wrong-toggle" data-word="${word}" onclick="toggleWrong(this)">&#x2717;</button></td>
     `;
     tbody.appendChild(tr);
   });
@@ -325,6 +363,18 @@ function startQuiz() {
   window.scrollTo(0, 0);
 }
 
+function toggleWrong(btn) {
+  const word = btn.dataset.word;
+  const wrong = loadWrongWords();
+  btn.classList.toggle('active');
+  if (btn.classList.contains('active')) {
+    wrong.add(word);
+  } else {
+    wrong.delete(word);
+  }
+  saveWrongWords(wrong);
+}
+
 let revealed = false;
 
 document.getElementById('revealBtn').addEventListener('click', () => {
@@ -332,6 +382,11 @@ document.getElementById('revealBtn').addEventListener('click', () => {
   document.querySelectorAll('.word-cell').forEach(el => {
     el.classList.toggle('word-hidden', !revealed);
     el.classList.toggle('word-revealed', revealed);
+  });
+  const wrong = loadWrongWords();
+  document.querySelectorAll('.wrong-toggle').forEach(btn => {
+    btn.classList.toggle('visible', revealed);
+    if (revealed) btn.classList.toggle('active', wrong.has(btn.dataset.word));
   });
   document.getElementById('revealBtn').innerHTML = revealed ? '\u{1f648} Hide Spelling' : '\u{1f440} Reveal Spelling';
 });
